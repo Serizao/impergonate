@@ -45,9 +45,9 @@ return `$domain=New-Object -TypeName System.DirectoryServices.DirectoryEntry
 		$INF=$INF.Replace('[[signature]]',$Signature)
 		write-Host "Certificate Request is being generated"
 		$INF | out-file -filepath $INFPath -force  > $env:appdata'\\log.txt'
-		certreq -v -new $INFPath $CSRPath  >> $env:appdata'\\log.txt'
-		certreq -v -submit -attrib "CertificateTemplate:User" -config `+caConfig+` $CSRPath $CERPath  >>  $env:appdata'\\log.txt'
-		certreq -v -accept $CERPath >>  $env:appdata'\\log.txt'
+		certreq -v -f -new $INFPath $CSRPath  >> $env:appdata'\\log.txt'
+		certreq -v -f -submit -attrib "CertificateTemplate:User" -config `+caConfig+` $CSRPath $CERPath  >>  $env:appdata'\\log.txt'
+		certreq -v -f -accept $CERPath >>  $env:appdata'\\log.txt'
 		$cert = Get-Childitem "cert:\CurrentUser\My" | where-object {$_.Thumbprint -eq (New-Object System.Security.Cryptography.X509Certificates.X509Certificate2((Get-Item $CERPath).FullName, "")).Thumbprint}
 		echo $cert >>  $env:appdata'\\log.txt'
 		Write-Debug "[] Certificate found in computer store: $cert"
