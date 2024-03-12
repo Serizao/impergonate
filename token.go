@@ -41,6 +41,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		defer token.Close()
 		//Enable, Disable, or Remove privileges in one line
 		token.EnableAllPrivileges()
 		if *list {
